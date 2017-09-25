@@ -19,13 +19,7 @@ namespace JsonizeLambda
 
         public Response(int statusCode, string format, string body){
 
-            if (format == "json")
-            {
-                headers = new Headers();
-            } else {
-                headers = null;
-            }
-
+            this.headers = new Headers(format);
             this.body = body;
             this.statusCode = statusCode;
         }

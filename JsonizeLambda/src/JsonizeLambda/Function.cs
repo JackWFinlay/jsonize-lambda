@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -26,8 +27,8 @@ namespace JsonizeLambda
         public async Task<dynamic> FunctionHandlerAsync(Request request, ILambdaContext context)
         {
             string urlExists;
-            string url = request.queryStringParameters
-                .TryGetValue("url", out urlExists) ? urlExists : "";
+            string url = WebUtility.UrlDecode(request.queryStringParameters
+                .TryGetValue("url", out urlExists) ? urlExists : "");
 
             string formatExists;
             string format = request.queryStringParameters
@@ -53,7 +54,11 @@ namespace JsonizeLambda
             string renderJavascript = request.queryStringParameters
                 .TryGetValue("renderJavascript", out renderJavascriptExists) ? renderJavascriptExists : "false";
 
-            var body = await JsonConvert.SerializeObjectAsync(await Convert(url: url,
+            string body;
+            int responseCode;
+            try
+            {
+                body = await JsonConvert.SerializeObjectAsync(await Convert(url: url,
                                     format: format,
                                     emptyTextNodeHandling: emptyTextNodeHandling,
                                     nullValueHandling: nullValueHandling,
@@ -62,7 +67,16 @@ namespace JsonizeLambda
                                     renderJavascript: renderJavascript
                                     ));
 
-            return new Response(format, body);
+                responseCode = 200;
+            }
+            catch(Exception e)
+            {
+                body = e.ToString();
+                responseCode = 500;
+            }
+
+            Response response = new Response(responseCode, format, body);
+            return response;
         }
 
         public async Task<dynamic> Convert(string url, string format,
@@ -112,15 +126,7 @@ namespace JsonizeLambda
             }
             catch (Exception e)
             {
-                if (format.ToLower().Equals("json"))
-                {
-                    return JsonConvert.DeserializeObject<JObject>("{ 'error' : 'Incorrect usage.' }");
-                    //return url;
-                }
-                else
-                {
-                    return "string " + e.ToString();
-                }
+                throw e;
             }
         }
     }
